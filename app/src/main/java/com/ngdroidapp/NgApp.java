@@ -21,11 +21,11 @@ public class NgApp extends BaseApp {
 
 
     public void setup() {
-        appManager.setUnitResolution(AppManager.RESOLUTION_QHD);
+        appManager.setUnitResolution(AppManager.RESOLUTION_FULLHD);
         appManager.setFrameRate(20);
 
-        MenuCanvas mc = new MenuCanvas(this);
-        canvasManager.setCurrentCanvas(mc);
+        GameCanvas gameCanvas = new GameCanvas(this);
+        canvasManager.setCurrentCanvas(gameCanvas);
     }
 
 

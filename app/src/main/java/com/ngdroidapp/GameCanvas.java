@@ -16,32 +16,35 @@ import istanbul.gamelab.ngdroid.util.Utils;
 
 public class GameCanvas extends BaseCanvas {
 
-    private Bitmap logo;
-    private int logox, logoy, logow, logoh;
+    private static final int ROCK = 0;
+    private static final int PAPER = 1;
+    private static final int SCISSORS = 2;
 
+    private Bitmap[] images;
+    private int imagecount, imagew, imageh;
+    private int playerPosx, playerPosy;
 
     public GameCanvas(NgApp ngApp) {
         super(ngApp);
     }
 
     public void setup() {
-        LOGI("setup");
-
-        logo = Utils.loadImage(root,"gamelab-istanbul_logo.png");
-        logow = logo.getWidth();
-        logoh = logo.getHeight();
-        logox = (getWidth() - logow) / 2;
-        logoy = (getHeight() - logoh) / 2;
+        imagecount = 3;
+        images = new Bitmap[imagecount];
+        images[ROCK] = Utils.loadImage(root, "rock.png");
+        images[PAPER] = Utils.loadImage(root, "paper.png");
+        images[SCISSORS] = Utils.loadImage(root, "scissors.png");
+        imagew = images[ROCK].getWidth();
+        imageh = images[ROCK].getHeight();
     }
 
     public void update() {
-        LOGI("update");
+
     }
 
     public void draw(Canvas canvas) {
-        LOGI("draw");
-
-        canvas.drawBitmap(logo, logox, logoy, null);
+        canvas.drawARGB(255, 0, 0, 0);
+        canvas.drawBitmap(images[ROCK], (getWidth() - imagew) >> 1, (getHeight() - imageh) >> 1, null);
     }
 
     public void keyPressed(int key) {
