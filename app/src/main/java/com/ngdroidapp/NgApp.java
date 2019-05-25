@@ -22,7 +22,7 @@ public class NgApp extends BaseApp {
 
     public void setup() {
         appManager.setUnitResolution(AppManager.RESOLUTION_FULLHD);
-        appManager.setFrameRate(20);
+        appManager.setFrameRate(30);
 
         GameCanvas gameCanvas = new GameCanvas(this);
         canvasManager.setCurrentCanvas(gameCanvas);
