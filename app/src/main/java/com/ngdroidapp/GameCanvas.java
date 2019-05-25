@@ -9,6 +9,7 @@ import android.graphics.Rect;
 import java.util.Random;
 
 import istanbul.gamelab.ngdroid.base.BaseCanvas;
+import istanbul.gamelab.ngdroid.util.Log;
 import istanbul.gamelab.ngdroid.util.Utils;
 
 
@@ -20,13 +21,19 @@ import istanbul.gamelab.ngdroid.util.Utils;
 
 public class GameCanvas extends BaseCanvas {
 
-    private static int STATE_PLAY = 0;
-    private static int STATE_END = 0;
+    private static final int STATE_PLAY = 0;
+    private static final int STATE_END = 1;
 
     private static final int NONE = -1;
     private static final int ROCK = 0;
     private static final int PAPER = 1;
     private static final int SCISSORS = 2;
+
+    private static final int TIED = 0;
+    private static final int WIN = 1;
+    private static final int LOSE = 2;
+
+    private int currentstate, status;
 
     private Bitmap[] images;
     private int imagecount, imagew, imageh;
@@ -41,13 +48,15 @@ public class GameCanvas extends BaseCanvas {
     private Random rand;
     private String[] strings;
     private Paint gamefont;
-    private Rect fontbounds;
+    private Rect textbounds;
 
     public GameCanvas(NgApp ngApp) {
         super(ngApp);
     }
 
     public void setup() {
+        currentstate = STATE_PLAY;
+
         imagecount = 3;
         images = new Bitmap[imagecount];
         images[ROCK] = Utils.loadImage(root, "rock.png");
@@ -68,11 +77,12 @@ public class GameCanvas extends BaseCanvas {
             enemyy[i] = 100;
         }
         playerselectedposx = (getWidth() - imagew) >> 1;
-        playerselectedposy = getHeight() - imageh - 700;
+        playerselectedposy = getHeight() - imageh - 650;
         enemyselectedposx = playerselectedposx;
-        enemyselectedposy = 700;
+        enemyselectedposy = 650;
 
         playerindex = NONE;
+        enemyindex = NONE;
         selectedfont = new Paint();
         selectedfont.setARGB(128, 255, 255, 255);
 
@@ -82,39 +92,66 @@ public class GameCanvas extends BaseCanvas {
         speed = 20;
 
         rand = new Random();
-        strings = new String[] {"PLAYER WIN", "TIED", "ENEMYWIN"};
+        strings = new String[] {"TIED", "PLAYER WIN", "ENEMY WIN"};
         gamefont = new Paint();
-        gamefont.setTextSize(60);
+        gamefont.setTextSize(156);
+        gamefont.setColor(Color.WHITE);
+        textbounds = new Rect();
     }
 
     public void update() {
-        if(playerindex != NONE && playerselected) {
-            calculateDirection(true);
-            playerx[playerindex] += dx * speed;
-            playery[playerindex] += dy * speed;
-            if(Math.abs(playerx[playerindex] - playerselectedposx) < speed && Math.abs(playery[playerindex] - playerselectedposy) < speed) {
-                dx = dy = 0;
-                playerindex = NONE;
-                enemyindex = rand.nextInt(3);
-                enemyselected = true;
-            }
-        } else if(enemyindex != NONE && enemyselected) {
-            calculateDirection(false);
-            enemyx[enemyindex] += dx * speed;
-            enemyy[enemyindex] += dy * speed;
-            if(Math.abs(enemyx[enemyindex] - enemyselectedposx) < speed && Math.abs(enemyy[enemyindex] - enemyselectedposy) < speed) {
-                dx = dy = 0;
-                enemyindex = NONE;
-            }
-        } else if(playerselected && enemyselected) {
+        switch (currentstate) {
+            case STATE_PLAY:
+                if(playerindex != NONE && playerselected) {
+                    calculateDirection(true);
+                    playerx[playerindex] += dx * speed;
+                    playery[playerindex] += dy * speed;
+                    if(Math.abs(playerx[playerindex] - playerselectedposx) < speed && Math.abs(playery[playerindex] - playerselectedposy) < speed) {
+                        dx = dy = 0;
+                        enemyindex = rand.nextInt(3);
+                        playerselected = false;
+                        enemyselected = true;
+                    }
+                } else if(enemyindex != NONE && enemyselected) {
+                    calculateDirection(false);
+                    enemyx[enemyindex] += dx * speed;
+                    enemyy[enemyindex] += dy * speed;
+                    if(Math.abs(enemyx[enemyindex] - enemyselectedposx) < speed && Math.abs(enemyy[enemyindex] - enemyselectedposy) < speed) {
+                        dx = dy = 0;
+                        enemyselected = false;
+                    }
+                } else if(playerindex != NONE && enemyindex != NONE) {
+                    if (playerindex == enemyindex) status = TIED;
+                    else if (playerindex == ROCK) status = (enemyindex == PAPER ? LOSE : WIN);
+                    else if (playerindex == PAPER) status = (enemyindex == SCISSORS ? LOSE : WIN);
+                    else status = (enemyindex == PAPER ? LOSE : WIN);
+                    currentstate = STATE_END;
+                }
+                break;
+            case STATE_END:
+                break;
         }
     }
 
     public void draw(Canvas canvas) {
-        canvas.drawARGB(255, 0, 0, 0);
-        for(int i = 0; i < imagecount; i++) {
-            canvas.drawBitmap(images[i], playerx[i], playery[i], playerindex == i ? selectedfont : null);
-            canvas.drawBitmap(images[i], enemyx[i], enemyy[i], null);
+        switch (currentstate) {
+            case STATE_PLAY:
+                canvas.drawARGB(255, 0, 0, 0);
+                for(int i = 0; i < imagecount; i++) {
+                    canvas.drawBitmap(images[i], playerx[i], playery[i], (playerindex == i && playerselected) ? selectedfont : null);
+                    canvas.drawBitmap(images[i], enemyx[i], enemyy[i], null);
+                }
+                break;
+            case STATE_END:
+                canvas.drawARGB(255, 0, 0, 0);
+                for(int i = 0; i < imagecount; i++) {
+                    canvas.drawBitmap(images[i], playerx[i], playery[i], (playerindex == i && playerselected) ? selectedfont : null);
+                    canvas.drawBitmap(images[i], enemyx[i], enemyy[i], null);
+                }
+
+                gamefont.getTextBounds(strings[status], 0, strings[status].length(), textbounds);
+                canvas.drawText(strings[status], (getWidth() - textbounds.right) >> 1, getHeight() >> 1, gamefont);
+                break;
         }
     }
 
@@ -153,7 +190,7 @@ public class GameCanvas extends BaseCanvas {
     }
 
     public void touchDown(int x, int y, int id) {
-        if(playerselected) return;
+        if(playerselected || enemyselected) return;
         for(int i = 0; i < imagecount; i++) {
             if(x >= playerx[i] && x < playerx[i] + imagew && y >= playery[i] && y < playery[i] + imageh && images[i].getPixel(x - playerx[i], y - playery[i]) != Color.TRANSPARENT) {
                 playerindex = i;
@@ -165,7 +202,7 @@ public class GameCanvas extends BaseCanvas {
     }
 
     public void touchUp(int x, int y, int id) {
-        if(playerselected) return;
+        if(playerselected || enemyselected) return;
         if (playerindex != NONE) {
             if (x >= playerx[playerindex] && x < playerx[playerindex] + imagew &&
                     y >= playery[playerindex] && y < playery[playerindex] + imageh && images[playerindex].getPixel(x - playerx[playerindex], y - playery[playerindex]) != Color.TRANSPARENT) {
