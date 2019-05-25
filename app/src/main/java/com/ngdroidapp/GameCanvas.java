@@ -9,7 +9,6 @@ import android.graphics.Rect;
 import java.util.Random;
 
 import istanbul.gamelab.ngdroid.base.BaseCanvas;
-import istanbul.gamelab.ngdroid.util.Log;
 import istanbul.gamelab.ngdroid.util.Utils;
 
 
@@ -50,7 +49,9 @@ public class GameCanvas extends BaseCanvas {
     private Paint gamefont;
     private Rect textbounds;
 
-    private long timer, time;
+    private int enemyanimno, enemyanimcounter;
+    private long gametimer, gametime, enemytimer, enemytime;
+
 
     public GameCanvas(NgApp ngApp) {
         super(ngApp);
@@ -71,15 +72,15 @@ public class GameCanvas extends BaseCanvas {
         playery = new int[imagecount];
         enemyx = new int[imagecount];
         enemyy = new int[imagecount];
-        int offset = ((getWidth() / imagecount) - imagew);
+        int offset = ((getUnitWidth() / imagecount) - imagew);
         for(int i = 0; i < imagecount; i++) {
             playerx[i] = (imagew + offset) * i + (offset >> 1);
-            playery[i] = getHeight() - imageh - 100;
+            playery[i] = getUnitHeight() - imageh - 100;
             enemyx[i] = playerx[i];
             enemyy[i] = 100;
         }
-        playerselectedposx = (getWidth() - imagew) >> 1;
-        playerselectedposy = getHeight() - imageh - 700;
+        playerselectedposx = (getUnitWidth() - imagew) >> 1;
+        playerselectedposy = getUnitHeight() - imageh - 700;
         enemyselectedposx = playerselectedposx;
         enemyselectedposy = 600;
 
@@ -100,15 +101,20 @@ public class GameCanvas extends BaseCanvas {
         gamefont.setColor(Color.WHITE);
         textbounds = new Rect();
 
-        time = 2000;
-        timer = 0;
+        enemyanimno = -1;
+        enemyanimcounter = 10;
+
+        gametime = 2000;
+        gametimer = 0;
+        enemytime = 2500;
+        enemytimer = 0;
     }
 
     public void update() {
         switch (currentstate) {
             case STATE_PLAY:
-                playerMovement();
-                enemyMovement();
+                playerUpdate();
+                enemyUpdate();
                 checkWinner();
                 break;
             case STATE_END:
@@ -118,6 +124,8 @@ public class GameCanvas extends BaseCanvas {
     }
 
     public void draw(Canvas canvas) {
+        canvas.save();
+        canvas.scale(getWidth() / 1080.0f, getHeight() / 1920.0f);
         switch (currentstate) {
             case STATE_PLAY:
                 drawPlayers(canvas);
@@ -127,9 +135,10 @@ public class GameCanvas extends BaseCanvas {
                 drawGUI(canvas);
                 break;
         }
+        canvas.restore();
     }
 
-    private void playerMovement() {
+    private void playerUpdate() {
         if(playerindex != NONE && playerselected) {
             calculateDirection(true);
             playerx[playerindex] += dx * speed;
@@ -139,12 +148,20 @@ public class GameCanvas extends BaseCanvas {
                 enemyindex = rand.nextInt(3);
                 playerselected = false;
                 enemyselected = true;
+                enemytimer = enemytime + System.currentTimeMillis();
             }
         }
     }
 
-    private void enemyMovement() {
-        if(enemyindex != NONE && enemyselected) {
+    private void enemyUpdate() {
+        if(System.currentTimeMillis() < enemytimer) {
+            if(--enemyanimcounter <= 0) {
+                if(++enemyanimno >= imagecount) enemyanimno = 0;
+                enemyanimcounter = 10;
+            }
+        }
+        else if(enemyindex != NONE && enemyselected) {
+            enemyanimno = enemyindex;
             calculateDirection(false);
             enemyx[enemyindex] += dx * speed;
             enemyy[enemyindex] += dy * speed;
@@ -161,13 +178,14 @@ public class GameCanvas extends BaseCanvas {
             else if (playerindex == ROCK) status = (enemyindex == PAPER ? LOSE : WIN);
             else if (playerindex == PAPER) status = (enemyindex == SCISSORS ? LOSE : WIN);
             else status = (enemyindex == PAPER ? LOSE : WIN);
-            timer = time + System.currentTimeMillis();
+            gametimer = gametime + System.currentTimeMillis();
+            enemyanimno = -1;
             currentstate = STATE_END;
         }
     }
 
     private void restartGame() {
-        if(System.currentTimeMillis() >= timer) {
+        if(System.currentTimeMillis() >= gametimer) {
             root.canvasManager.setCurrentCanvas(new GameCanvas(root));
         }
     }
@@ -176,13 +194,13 @@ public class GameCanvas extends BaseCanvas {
         canvas.drawARGB(255, 0, 0, 0);
         for(int i = 0; i < imagecount; i++) {
             canvas.drawBitmap(images[i], playerx[i], playery[i], (playerindex == i && playerselected) ? selectedfont : null);
-            canvas.drawBitmap(images[i], enemyx[i], enemyy[i], null);
+            canvas.drawBitmap(images[i], enemyx[i], enemyy[i], enemyanimno == i ? selectedfont : null);
         }
     }
 
     private void drawGUI(Canvas canvas) {
         gamefont.getTextBounds(strings[status], 0, strings[status].length(), textbounds);
-        canvas.drawText(strings[status], (getWidth() - textbounds.right) >> 1, getHeight() >> 1, gamefont);
+        canvas.drawText(strings[status], (getUnitWidth() - textbounds.right) >> 1, getUnitHeight() >> 1, gamefont);
     }
 
     private void calculateDirection(boolean isPlayer) {
@@ -224,7 +242,8 @@ public class GameCanvas extends BaseCanvas {
             case STATE_PLAY:
                 if(playerselected || enemyselected) return;
                 for(int i = 0; i < imagecount; i++) {
-                    if (x >= playerx[i] && x < playerx[i] + imagew && y >= playery[i] && y < playery[i] + imageh && images[i].getPixel(x - playerx[i], y - playery[i]) != Color.TRANSPARENT) {
+                    if (x >= playerx[i] && x < playerx[i] + imagew &&
+                            y >= playery[i] && y < scaleNum(playery[i] + imageh) && images[i].getPixel(x - playerx[i], y - playery[i]) != Color.TRANSPARENT) {
                         playerindex = i;
                     }
                 }
@@ -242,8 +261,8 @@ public class GameCanvas extends BaseCanvas {
             case STATE_PLAY:
                 if(playerselected || enemyselected) return;
                 if (playerindex != NONE) {
-                    if (x >= playerx[playerindex] && x < playerx[playerindex] + imagew &&
-                            y >= playery[playerindex] && y < playery[playerindex] + imageh && images[playerindex].getPixel(x - playerx[playerindex], y - playery[playerindex]) != Color.TRANSPARENT) {
+                    if (x >= scaleNum(playerx[playerindex]) && x < scaleNum(playerx[playerindex] + imagew) &&
+                            y >= scaleNum(playery[playerindex]) && y < scaleNum(playery[playerindex] + imageh) && images[playerindex].getPixel(x - playerx[playerindex], y - playery[playerindex]) != Color.TRANSPARENT) {
                         playerselected = true;
                         return;
                     }
